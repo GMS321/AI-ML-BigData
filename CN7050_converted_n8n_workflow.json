@@ -1,0 +1,255 @@
+{
+  "name": "CN7050 Multi-Agent Workflow (Notebook Converted)",
+  "nodes": [
+    {
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ],
+      "parameters": {
+        "path": "support",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "message",
+              "value": "={{$json.body.message}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Intent Classifier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        600,
+        150
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/intent",
+        "jsonParameters": true,
+        "bodyParametersJson": "{ \"message\": \"{{$json.message}}\" }"
+      }
+    },
+    {
+      "name": "Sentiment Classifier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        600,
+        450
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/sentiment",
+        "jsonParameters": true,
+        "bodyParametersJson": "{ \"message\": \"{{$json.message}}\" }"
+      }
+    },
+    {
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        800,
+        300
+      ],
+      "parameters": {
+        "mode": "combine"
+      }
+    },
+    {
+      "name": "Decision Logic",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.intent}}",
+              "operation": "contains",
+              "value2": "Complaint"
+            },
+            {
+              "value1": "={{$json.sentiment}}",
+              "operation": "contains",
+              "value2": "Negative"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Response Generator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        150
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/response",
+        "jsonParameters": true,
+        "bodyParametersJson": "{ \"message\": \"{{$json.message}}\" }"
+      }
+    },
+    {
+      "name": "Escalation Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        450
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "response",
+              "value": "Your issue has been escalated to human support."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Return to UI",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        300
+      ],
+      "parameters": {
+        "responseBody": "={{$json.response || $json}}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Input": {
+      "main": [
+        [
+          {
+            "node": "Intent Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sentiment Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Classifier": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sentiment Classifier": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Decision Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Logic": {
+      "main": [
+        [
+          {
+            "node": "Escalation Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Response Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response Generator": {
+      "main": [
+        [
+          {
+            "node": "Return to UI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalation Text": {
+      "main": [
+        [
+          {
+            "node": "Return to UI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
